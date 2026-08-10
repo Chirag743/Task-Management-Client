@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
+import ClassicLoader from "../components/ClassicLoader";
 
 function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
 
   const handleOnSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
 
     try {
       const response = await api.post("/api/user/signup", {
@@ -24,6 +27,8 @@ function SignupPage() {
       }
     } catch (error) {
       console.error("Error signing up:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -72,16 +77,16 @@ function SignupPage() {
             className="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
             placeholder="Create a password"
           />
         </div>
 
         <button
           type="submit"
-          className="w-full border border-slate-800 bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+          disabled={isLoading}
+          className="flex w-full items-center justify-center border border-slate-800 bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-600"
         >
-          Sign Up
+          {isLoading ? <ClassicLoader /> : 'Sign Up'}
         </button>
       </form>
     </section>
