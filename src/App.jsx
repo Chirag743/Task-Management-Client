@@ -8,6 +8,7 @@ import DashboardTasksPage from './pages/dashboard/DashboardTasksPage'
 import DashboardProfilePage from './pages/dashboard/DashboardProfilePage'
 import SignupPage from './pages/SignupPage'
 import NotFoundPage from './pages/NotFoundPage'
+import DashboardProjectsPage from './pages/dashboard/DashboardProjectsPage'
 
 const router = createBrowserRouter([
   {
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <DashboardHomePage /> },
       { path: 'tasks', element: <DashboardTasksPage /> },
+      { path: 'projects', element: <DashboardProjectsPage /> },
       { path: 'my-profile', element: <DashboardProfilePage /> },
     ],
   },

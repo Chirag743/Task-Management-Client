@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 const dashboardLinks = [
   { to: '/dashboard', label: 'Dashboard', end: true },
   { to: '/dashboard/tasks', label: 'Tasks' },
+  { to: '/dashboard/projects', label: 'Projects' },
   { to: '/dashboard/my-profile', label: 'My Profile' },
 ]
 
