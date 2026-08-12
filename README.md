@@ -85,7 +85,7 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-The server needs a `.env` file with `MONGO_URI` and `JWT_SECRET` — see [`../server/README.md`](../server/README.md#environment-variables).
+The server needs a `.env` file with `MONGO_URI` and `JWT_SECRET` — see [`server README.md file`](https://github.com/Chirag743/Task-Management-Server/blob/main/README.md).
 
 ---
 
@@ -157,7 +157,7 @@ const api = axios.create({
 
 ### Endpoints consumed
 
-These map directly to the backend routes documented in [`../server/README.md`](../server/README.md#api-reference).
+These map directly to the backend routes documented in [`server README.md file`](https://github.com/Chirag743/Task-Management-Server/blob/main/README.md).
 
 | Method   | Endpoint                               | Used in             |
 | -------- | -------------------------------------- | ------------------- |
