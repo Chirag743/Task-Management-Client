@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '../../utils/api'
-import ClassicLoader from '../../components/ClassicLoader'
+import {
+  alertError,
+  alertSuccess,
+  btnPrimary,
+  inputClass,
+  kicker,
+  labelClass,
+  loaderClass,
+  loaderCompactClass,
+  panel,
+  panelBody,
+  panelHeader,
+} from '../../utils/tailwindClasses'
 
 function DashboardProfilePage() {
   const [profile, setProfile] = useState({ name: '', email: '' })
@@ -23,7 +35,7 @@ function DashboardProfilePage() {
           email: user.email || '',
         })
       } catch (fetchError) {
-        setError('Unable to load profile. Please sign in again if needed.')
+        setError('Unable to load profile. Please sign in again.')
         console.error('Error loading profile:', fetchError)
       } finally {
         setIsLoading(false)
@@ -36,7 +48,7 @@ function DashboardProfilePage() {
   const initials = useMemo(() => {
     const name = profile.name.trim()
     if (!name) {
-      return 'U'
+      return '?'
     }
 
     return name
@@ -66,7 +78,7 @@ function DashboardProfilePage() {
         name: user.name || profile.name,
         email: user.email || profile.email,
       })
-      setMessage('Profile updated successfully.')
+      setMessage('Profile saved successfully.')
     } catch (saveError) {
       setError('Unable to update profile. Please try again.')
       console.error('Error updating profile:', saveError)
@@ -76,86 +88,97 @@ function DashboardProfilePage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">My Profile</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          View and update your account details in a simple classic profile panel.
+    <div className="space-y-8">
+      <header className="border-b border-rule-light pb-6">
+        <p className={kicker}>Account</p>
+        <h1 className="mt-1 text-[1.75rem] text-ink sm:text-[2rem]">Profile</h1>
+        <p className="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
+          Your name and email used across the workspace.
         </p>
-      </div>
+      </header>
 
-      <div className="grid gap-4 md:grid-cols-[180px_1fr]">
-        <div className="border border-slate-200 bg-slate-50 p-4 text-center">
-          <div className="mx-auto flex h-24 w-24 items-center justify-center border border-slate-300 bg-white text-2xl font-semibold text-slate-700">
-            {initials}
+      <div className="grid gap-5 md:grid-cols-[200px_1fr]">
+        <aside className={`${panel} p-5 text-center`}>
+          <div className="mx-auto flex h-20 w-20 items-center justify-center border border-rule bg-paper-dark font-serif text-2xl font-semibold text-ink-muted">
+            {isLoading ? '…' : initials}
           </div>
-          <p className="mt-3 text-sm font-semibold text-slate-900">{profile.name || 'Loading...'}</p>
-          <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">Member</p>
-        </div>
+          <p className="mt-4 font-medium text-ink">{profile.name || '—'}</p>
+          <p className="mt-1 text-sm text-ink-muted">{profile.email || '—'}</p>
+          <p className={`${kicker} mt-4`}>Member</p>
+        </aside>
 
-        <div className="border border-slate-200 bg-white p-4">
+        <section className={panel}>
+          <div className={panelHeader}>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">Account details</h2>
+          </div>
+
           {isLoading ? (
-            <div className="flex min-h-[180px] items-center justify-center text-sm text-slate-600">
-              <ClassicLoader />
+            <div className={`${panelBody} flex min-h-[200px] items-center justify-center`}>
+              <span className="inline-flex items-center gap-2.5 text-sm text-ink-muted" aria-label="Loading">
+                <span className={loaderClass} />
+                <span>Loading…</span>
+              </span>
             </div>
           ) : (
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="grid gap-4 sm:grid-cols-2">
+            <form className={`${panelBody} space-y-5`} onSubmit={handleSubmit}>
+              <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="profile-name" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <label htmlFor="profile-name" className={labelClass}>
                     Name
                   </label>
                   <input
                     id="profile-name"
                     type="text"
+                    className={inputClass}
                     value={profile.name}
                     onChange={(event) => setProfile((current) => ({ ...current, name: event.target.value }))}
-                    className="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                     placeholder="Your name"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="profile-email" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <label htmlFor="profile-email" className={labelClass}>
                     Email
                   </label>
                   <input
                     id="profile-email"
                     type="email"
+                    className={inputClass}
                     value={profile.email}
                     onChange={(event) => setProfile((current) => ({ ...current, email: event.target.value }))}
-                    className="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
                     placeholder="you@example.com"
                   />
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-5 border-t border-rule-light pt-5 sm:grid-cols-2">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Role</p>
-                  <p className="mt-1 text-sm text-slate-900">Workspace Member</p>
+                  <p className={kicker}>Role</p>
+                  <p className="mt-1 text-sm text-ink">Workspace member</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Account Status</p>
-                  <p className="mt-1 text-sm text-slate-900">Active</p>
+                  <p className={kicker}>Status</p>
+                  <p className="mt-1 text-sm text-ink">Active</p>
                 </div>
               </div>
 
-              {error ? <p className="text-sm text-red-700">{error}</p> : null}
-              {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
+              {error ? (
+                <p className={alertError} role="alert">
+                  {error}
+                </p>
+              ) : null}
+              {message ? (
+                <p className={alertSuccess} role="status">
+                  {message}
+                </p>
+              ) : null}
 
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="flex items-center justify-center border border-slate-800 bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-600"
-                >
-                  {isSaving ? <ClassicLoader /> : 'Save Changes'}
-                </button>
-              </div>
+              <button type="submit" disabled={isSaving} className={btnPrimary}>
+                {isSaving ? <span className={loaderCompactClass} aria-label="Loading" /> : 'Save changes'}
+              </button>
             </form>
           )}
-        </div>
+        </section>
       </div>
     </div>
   )

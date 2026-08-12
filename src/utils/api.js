@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const baseURL =
-  process.env.NODE_ENV === "production"
+  import.meta.env.PROD
     ? "https://deployed-url.com/"
     : "http://localhost:8000/";
 

@@ -1,8 +1,25 @@
-
-
 import { useEffect, useMemo, useState } from 'react'
 import api from '../../utils/api'
-import ClassicLoader from '../../components/ClassicLoader'
+import {
+  alertError,
+  btnDanger,
+  btnGhost,
+  btnPrimary,
+  btnSecondary,
+  inputClass,
+  kicker,
+  labelClass,
+  loaderClass,
+  loaderCompactClass,
+  panel,
+  panelBody,
+  panelHeader,
+  statusBadgeClass,
+  statusColorClasses,
+  statusLabels,
+  tableHead,
+  tableRow,
+} from '../../utils/tailwindClasses'
 
 const initialProjectForm = {
   name: '',
@@ -15,16 +32,11 @@ const initialTaskForm = {
   status: 'pending',
 }
 
-const statusLabels = {
-  pending: 'Pending',
-  'in-progress': 'In Progress',
-  completed: 'Completed',
-}
-
 function DashboardProjectsPage() {
   const [projects, setProjects] = useState([])
   const [projectForm, setProjectForm] = useState(initialProjectForm)
   const [editingProjectId, setEditingProjectId] = useState(null)
+  const [expandedProjectId, setExpandedProjectId] = useState(null)
   const [taskFormsByProject, setTaskFormsByProject] = useState({})
   const [editingTaskIdsByProject, setEditingTaskIdsByProject] = useState({})
   const [isLoading, setIsLoading] = useState(true)
@@ -49,7 +61,34 @@ function DashboardProjectsPage() {
   }
 
   useEffect(() => {
-    loadProjects()
+    let isMounted = true
+
+    const fetchProjects = async () => {
+      setIsLoading(true)
+      setError('')
+
+      try {
+        const response = await api.get('/api/project')
+        if (isMounted) {
+          setProjects(Array.isArray(response.data) ? response.data : [])
+        }
+      } catch (fetchError) {
+        if (isMounted) {
+          setError('Unable to load projects. Please try again.')
+        }
+        console.error('Error loading projects:', fetchError)
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    fetchProjects()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const summary = useMemo(() => {
@@ -132,12 +171,11 @@ function DashboardProjectsPage() {
       name: project.name || '',
       description: project.description || '',
     })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleDeleteProject = async (projectId) => {
-    const shouldDelete = window.confirm('Delete this project?')
-
-    if (!shouldDelete) {
+    if (!window.confirm('Delete this project and all its tasks?')) {
       return
     }
 
@@ -146,6 +184,9 @@ function DashboardProjectsPage() {
       setProjects((current) => current.filter((project) => project._id !== projectId))
       if (editingProjectId === projectId) {
         resetProjectForm()
+      }
+      if (expandedProjectId === projectId) {
+        setExpandedProjectId(null)
       }
     } catch (deleteError) {
       setError('Unable to delete project. Please try again.')
@@ -159,7 +200,7 @@ function DashboardProjectsPage() {
     const editingTaskId = getEditingTaskId(projectId)
 
     if (!form.title.trim()) {
-      setError('Task title is required before adding to project.')
+      setError('Task title is required.')
       return
     }
 
@@ -204,6 +245,7 @@ function DashboardProjectsPage() {
   }
 
   const handleEditProjectTask = (projectId, task) => {
+    setExpandedProjectId(projectId)
     updateTaskForm(projectId, {
       title: task.title || '',
       description: task.description || '',
@@ -217,9 +259,7 @@ function DashboardProjectsPage() {
   }
 
   const handleDeleteProjectTask = async (projectId, taskId) => {
-    const shouldDelete = window.confirm('Delete this task from the project?')
-
-    if (!shouldDelete) {
+    if (!window.confirm('Remove this task from the project?')) {
       return
     }
 
@@ -251,96 +291,93 @@ function DashboardProjectsPage() {
     }
   }
 
-  const formatStatus = (status) => statusLabels[status] || 'Pending'
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Projects</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          Manage projects and attach project-specific tasks in a classic workspace layout.
-        </p>
+    <div className="space-y-8">
+      <header className="flex flex-col gap-4 border-b border-rule-light pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className={kicker}>Projects</p>
+          <h1 className="mt-1 text-[1.75rem] text-ink sm:text-[2rem]">Project workspace</h1>
+          <p className="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
+            Group related tasks under named projects.
+          </p>
+        </div>
+        <button type="button" className={btnSecondary} onClick={loadProjects}>
+          Refresh
+        </button>
+      </header>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        {[
+          { label: 'Projects', value: summary.totalProjects },
+          { label: 'Tasks', value: summary.totalTasks },
+          { label: 'Completed', value: summary.completedTasks },
+        ].map((stat) => (
+          <article key={stat.label} className={`${panel} p-4`}>
+            <p className={kicker}>{stat.label}</p>
+            <p className="mt-2 font-serif text-[1.75rem] font-semibold leading-tight text-ink">{stat.value}</p>
+          </article>
+        ))}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <article className="border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Projects</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.totalProjects}</p>
-        </article>
-        <article className="border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Project Tasks</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.totalTasks}</p>
-        </article>
-        <article className="border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.completedTasks}</p>
-        </article>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
-        <section className="border border-slate-200 bg-white p-4">
-          <div className="border-b border-slate-200 pb-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-              {editingProjectId ? 'Edit Project' : 'Create Project'}
+      <div className="grid gap-5 xl:grid-cols-[340px_1fr]">
+        <section className={panel}>
+          <div className={panelHeader}>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
+              {editingProjectId ? 'Edit project' : 'New project'}
             </h2>
           </div>
 
-          <form className="mt-4 space-y-4" onSubmit={handleProjectSubmit}>
+          <form className={`${panelBody} space-y-4`} onSubmit={handleProjectSubmit}>
             <div>
-              <label htmlFor="project-name" className="mb-1 block text-sm font-medium text-slate-700">
-                Project Name
+              <label htmlFor="project-name" className={labelClass}>
+                Name
               </label>
               <input
                 id="project-name"
                 type="text"
+                className={inputClass}
                 value={projectForm.name}
                 onChange={(event) =>
                   setProjectForm((current) => ({ ...current, name: event.target.value }))
                 }
-                className="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
-                placeholder="Website revamp"
+                placeholder="e.g. Website redesign"
               />
             </div>
 
             <div>
-              <label htmlFor="project-description" className="mb-1 block text-sm font-medium text-slate-700">
+              <label htmlFor="project-description" className={labelClass}>
                 Description
               </label>
               <textarea
                 id="project-description"
-                rows="4"
+                rows={4}
+                className={`${inputClass} resize-y`}
                 value={projectForm.description}
                 onChange={(event) =>
                   setProjectForm((current) => ({ ...current, description: event.target.value }))
                 }
-                className="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
-                placeholder="Describe this project"
+                placeholder="What is this project about?"
               />
             </div>
 
-            {error ? <p className="text-sm text-red-700">{error}</p> : null}
+            {error ? (
+              <p className={alertError} role="alert">
+                {error}
+              </p>
+            ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                disabled={isSubmittingProject}
-                className="flex items-center justify-center border border-slate-800 bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-600"
-              >
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button type="submit" disabled={isSubmittingProject} className={btnPrimary}>
                 {isSubmittingProject ? (
-                  <ClassicLoader />
+                  <span className={loaderCompactClass} aria-label="Loading" />
                 ) : editingProjectId ? (
-                  'Update Project'
+                  'Save changes'
                 ) : (
-                  'Create Project'
+                  'Create project'
                 )}
               </button>
-
               {editingProjectId ? (
-                <button
-                  type="button"
-                  onClick={resetProjectForm}
-                  className="border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                >
+                <button type="button" className={btnSecondary} onClick={resetProjectForm}>
                   Cancel
                 </button>
               ) : null}
@@ -348,167 +385,168 @@ function DashboardProjectsPage() {
           </form>
         </section>
 
-        <section className="border border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Project List</h2>
-            <button
-              type="button"
-              onClick={loadProjects}
-              className="border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            >
-              Refresh
-            </button>
+        <section className={panel}>
+          <div className={panelHeader}>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">Your projects</h2>
           </div>
 
           {isLoading ? (
-            <div className="px-4 py-8 text-sm text-slate-600">
-              <ClassicLoader />
+            <div className="px-5 py-10">
+              <span className="inline-flex items-center gap-2.5 text-sm text-ink-muted" aria-label="Loading">
+                <span className={loaderClass} />
+                <span>Loading…</span>
+              </span>
             </div>
           ) : projects.length === 0 ? (
-            <div className="px-4 py-8 text-sm text-slate-600">
-              No projects yet. Create your first project using the form.
+            <div className="px-4 py-10 text-center">
+              <p className="font-serif text-lg text-ink">No projects yet</p>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-ink-muted">
+                Create a project using the form on the left.
+              </p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-200">
+            <div className="divide-y divide-rule-light">
               {projects.map((project) => {
                 const taskForm = getTaskForm(project._id)
                 const editingTaskId = getEditingTaskId(project._id)
                 const projectTasks = project.tasks || []
+                const isExpanded = expandedProjectId === project._id
 
                 return (
-                  <article key={project._id} className="space-y-4 px-4 py-4 sm:px-5">
+                  <article key={project._id} className="px-5 py-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <p className="text-base font-semibold text-slate-900">{project.name}</p>
-                        <p className="max-w-2xl text-sm leading-6 text-slate-600">{project.description}</p>
-                        <p className="text-xs text-slate-500">{projectTasks.length} task(s) in this project</p>
+                      <div>
+                        <p className="font-serif text-lg text-ink">{project.name}</p>
+                        <p className="mt-1 max-w-xl text-sm leading-relaxed text-ink-muted">
+                          {project.description}
+                        </p>
+                        <p className="mt-2 text-xs text-ink-faint">{projectTasks.length} task(s)</p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => handleEditProject(project)}
-                          className="border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                          className={btnSecondary}
+                          onClick={() => setExpandedProjectId(isExpanded ? null : project._id)}
                         >
+                          {isExpanded ? 'Collapse' : 'Manage tasks'}
+                        </button>
+                        <button type="button" className={btnSecondary} onClick={() => handleEditProject(project)}>
                           Edit
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteProject(project._id)}
-                          className="border border-slate-800 bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
-                        >
+                        <button type="button" className={btnDanger} onClick={() => handleDeleteProject(project._id)}>
                           Delete
                         </button>
                       </div>
                     </div>
 
-                    <div className="border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        {editingTaskId ? 'Edit Project Task' : 'Add Task To Project'}
-                      </p>
+                    {isExpanded ? (
+                      <div className="mt-5 border border-rule-light bg-paper-dark p-4">
+                        <p className={kicker}>{editingTaskId ? 'Edit task' : 'Add task to project'}</p>
 
-                      <form
-                        className="mt-3 grid gap-2 md:grid-cols-[1.2fr_1fr_160px_auto]"
-                        onSubmit={(event) => handleSaveProjectTask(event, project._id)}
-                      >
-                        <input
-                          type="text"
-                          value={taskForm.title}
-                          onChange={(event) => updateTaskForm(project._id, { title: event.target.value })}
-                          className="border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
-                          placeholder="Task title"
-                        />
-                        <input
-                          type="text"
-                          value={taskForm.description}
-                          onChange={(event) =>
-                            updateTaskForm(project._id, { description: event.target.value })
-                          }
-                          className="border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
-                          placeholder="Task description"
-                        />
-                        <select
-                          value={taskForm.status}
-                          onChange={(event) => updateTaskForm(project._id, { status: event.target.value })}
-                          className="border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
+                        <form
+                          className="mt-3 grid gap-2 md:grid-cols-[1.1fr_1fr_140px_auto]"
+                          onSubmit={(event) => handleSaveProjectTask(event, project._id)}
                         >
-                          <option value="pending">Pending</option>
-                          <option value="in-progress">In Progress</option>
-                          <option value="completed">Completed</option>
-                        </select>
-                        <button
-                          type="submit"
-                          disabled={submittingTaskProjectId === project._id}
-                          className="flex items-center justify-center border border-slate-800 bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-600"
-                        >
-                          {submittingTaskProjectId === project._id ? (
-                            <ClassicLoader />
-                          ) : editingTaskId ? (
-                            'Update'
-                          ) : (
-                            'Add'
-                          )}
-                        </button>
-                      </form>
+                          <input
+                            type="text"
+                            className={inputClass}
+                            value={taskForm.title}
+                            onChange={(event) => updateTaskForm(project._id, { title: event.target.value })}
+                            placeholder="Task title"
+                            aria-label="Task title"
+                          />
+                          <input
+                            type="text"
+                            className={inputClass}
+                            value={taskForm.description}
+                            onChange={(event) =>
+                              updateTaskForm(project._id, { description: event.target.value })
+                            }
+                            placeholder="Description"
+                            aria-label="Task description"
+                          />
+                          <select
+                            className={inputClass}
+                            value={taskForm.status}
+                            onChange={(event) => updateTaskForm(project._id, { status: event.target.value })}
+                            aria-label="Task status"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="in-progress">In progress</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                          <button
+                            type="submit"
+                            disabled={submittingTaskProjectId === project._id}
+                            className={btnPrimary}
+                          >
+                            {submittingTaskProjectId === project._id ? (
+                              <span className={loaderCompactClass} aria-label="Loading" />
+                            ) : editingTaskId ? (
+                              'Update'
+                            ) : (
+                              'Add'
+                            )}
+                          </button>
+                        </form>
 
-                      {editingTaskId ? (
-                        <button
-                          type="button"
-                          onClick={() => resetProjectTaskForm(project._id)}
-                          className="mt-2 border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                        >
-                          Cancel Task Edit
-                        </button>
-                      ) : null}
-                    </div>
+                        {editingTaskId ? (
+                          <button
+                            type="button"
+                            className={`${btnGhost} mt-2`}
+                            onClick={() => resetProjectTaskForm(project._id)}
+                          >
+                            Cancel edit
+                          </button>
+                        ) : null}
 
-                    <div className="overflow-x-auto border border-slate-200 bg-white">
-                      <div className="min-w-[640px]">
-                        <div className="grid grid-cols-[1.2fr_1.2fr_0.8fr_1fr] border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          <span>Task</span>
-                          <span>Description</span>
-                          <span>Status</span>
-                          <span>Actions</span>
-                        </div>
+                        <div className="mt-4 overflow-x-auto border border-rule bg-surface">
+                          <div className="min-w-[600px]">
+                            <div className={`${tableHead} grid-cols-[1fr_1fr_0.7fr_0.9fr]`}>
+                              <span>Task</span>
+                              <span>Description</span>
+                              <span>Status</span>
+                              <span>Actions</span>
+                            </div>
 
-                        {projectTasks.length === 0 ? (
-                          <p className="px-3 py-4 text-sm text-slate-600">No tasks added to this project yet.</p>
-                        ) : (
-                          <div className="divide-y divide-slate-200">
-                            {projectTasks.map((task) => (
-                              <div
-                                key={task._id}
-                                className="grid grid-cols-[1.2fr_1.2fr_0.8fr_1fr] px-3 py-3 text-sm text-slate-700"
-                              >
-                                <span className="font-medium text-slate-900">{task.title}</span>
-                                <span className="pr-3 text-slate-600">{task.description || '-'}</span>
-                                <span>
-                                  <span className="inline-flex border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-medium uppercase tracking-wide text-slate-700">
-                                    {formatStatus(task.status)}
+                            {projectTasks.length === 0 ? (
+                              <p className="px-4 py-5 text-sm text-ink-muted">No tasks in this project yet.</p>
+                            ) : (
+                              projectTasks.map((task) => (
+                                <div key={task._id} className={`${tableRow} grid-cols-[1fr_1fr_0.7fr_0.9fr]`}>
+                                  <span className="font-medium text-ink">{task.title}</span>
+                                  <span>{task.description || '—'}</span>
+                                  <span>
+                                    <span
+                                      className={`${statusBadgeClass} ${statusColorClasses[task.status] || statusColorClasses.pending}`}
+                                    >
+                                      {statusLabels[task.status] || 'Pending'}
+                                    </span>
                                   </span>
-                                </span>
-                                <span className="flex flex-wrap gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleEditProjectTask(project._id, task)}
-                                    className="border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={deletingTaskKey === `${project._id}:${task._id}`}
-                                    onClick={() => handleDeleteProjectTask(project._id, task._id)}
-                                    className="border border-slate-800 bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-600"
-                                  >
-                                    {deletingTaskKey === `${project._id}:${task._id}` ? 'Deleting...' : 'Delete'}
-                                  </button>
-                                </span>
-                              </div>
-                            ))}
+                                  <span className="flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      className={btnSecondary}
+                                      onClick={() => handleEditProjectTask(project._id, task)}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={btnDanger}
+                                      disabled={deletingTaskKey === `${project._id}:${task._id}`}
+                                      onClick={() => handleDeleteProjectTask(project._id, task._id)}
+                                    >
+                                      {deletingTaskKey === `${project._id}:${task._id}` ? '…' : 'Delete'}
+                                    </button>
+                                  </span>
+                                </div>
+                              ))
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
+                    ) : null}
                   </article>
                 )
               })}

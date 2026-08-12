@@ -1,6 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '../../utils/api'
-import ClassicLoader from '../../components/ClassicLoader'
+import {
+  alertError,
+  btnDanger,
+  btnPrimary,
+  btnSecondary,
+  inputClass,
+  kicker,
+  labelClass,
+  loaderClass,
+  loaderCompactClass,
+  panel,
+  panelBody,
+  panelHeader,
+  statusBadgeClass,
+  statusColorClasses,
+  statusLabels,
+  tableHead,
+  tableRow,
+} from '../../utils/tailwindClasses'
 
 const initialFormState = {
   title: '',
@@ -8,26 +26,30 @@ const initialFormState = {
   status: 'pending',
 }
 
-const statusLabels = {
-  pending: 'Pending',
-  'in-progress': 'In Progress',
-  completed: 'Completed',
-}
+const filterOptions = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'in-progress', label: 'In progress' },
+  { value: 'completed', label: 'Completed' },
+]
 
 function DashboardTasksPage() {
   const [tasks, setTasks] = useState([])
   const [formState, setFormState] = useState(initialFormState)
   const [editingTaskId, setEditingTaskId] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  const loadTasks = async () => {
+  const loadTasks = async (filter = statusFilter) => {
     setIsLoading(true)
     setError('')
 
     try {
-      const response = await api.get('/api/task')
+      const params = filter !== 'all' ? { status: filter } : {}
+      const response = await api.get('/api/task', { params })
       setTasks(Array.isArray(response.data) ? response.data : [])
     } catch (fetchError) {
       setError('Unable to load tasks. Please try again.')
@@ -38,8 +60,49 @@ function DashboardTasksPage() {
   }
 
   useEffect(() => {
-    loadTasks()
-  }, [])
+    let isMounted = true
+
+    const fetchTasks = async () => {
+      setIsLoading(true)
+      setError('')
+
+      try {
+        const params = statusFilter !== 'all' ? { status: statusFilter } : {}
+        const response = await api.get('/api/task', { params })
+        if (isMounted) {
+          setTasks(Array.isArray(response.data) ? response.data : [])
+        }
+      } catch (fetchError) {
+        if (isMounted) {
+          setError('Unable to load tasks. Please try again.')
+        }
+        console.error('Error loading tasks:', fetchError)
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    fetchTasks()
+
+    return () => {
+      isMounted = false
+    }
+  }, [statusFilter])
+
+  const filteredTasks = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) {
+      return tasks
+    }
+
+    return tasks.filter(
+      (task) =>
+        task.title?.toLowerCase().includes(query) ||
+        task.description?.toLowerCase().includes(query),
+    )
+  }, [tasks, searchQuery])
 
   const counts = useMemo(() => {
     const pending = tasks.filter((task) => task.status === 'pending').length
@@ -92,12 +155,11 @@ function DashboardTasksPage() {
       description: task.description || '',
       status: task.status || 'pending',
     })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleDelete = async (taskId) => {
-    const shouldDelete = window.confirm('Delete this task?')
-
-    if (!shouldDelete) {
+    if (!window.confirm('Delete this task permanently?')) {
       return
     }
 
@@ -113,101 +175,119 @@ function DashboardTasksPage() {
     }
   }
 
-  const formatStatus = (status) => statusLabels[status] || 'Pending'
+  const formatDate = (dateString) => {
+    if (!dateString) {
+      return '—'
+    }
+
+    return new Date(dateString).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Tasks</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          Create, update, and track your work using a simple, classic task board.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <header className="flex flex-col gap-4 border-b border-rule-light pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className={kicker}>Tasks</p>
+          <h1 className="mt-1 text-[1.75rem] text-ink sm:text-[2rem]">Task list</h1>
+          <p className="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
+            Add, edit, and filter your personal tasks.
+          </p>
+        </div>
+        <button type="button" className={btnSecondary} onClick={() => loadTasks(statusFilter)}>
+          Refresh
+        </button>
+      </header>
 
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-4">
         {[
           { label: 'Total', value: counts.total },
           { label: 'Pending', value: counts.pending },
-          { label: 'In Progress', value: counts.inProgress },
+          { label: 'In progress', value: counts.inProgress },
           { label: 'Completed', value: counts.completed },
-        ].map((item) => (
-          <article key={item.label} className="border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{item.value}</p>
+        ].map((stat) => (
+          <article key={stat.label} className={`${panel} p-4`}>
+            <p className={kicker}>{stat.label}</p>
+            <p className="mt-2 font-serif text-[1.75rem] font-semibold leading-tight text-ink">{stat.value}</p>
           </article>
         ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
-        <section className="border border-slate-200 bg-white p-4">
-          <div className="border-b border-slate-200 pb-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-              {editingTaskId ? 'Edit Task' : 'Add Task'}
+      <div className="grid gap-5 xl:grid-cols-[340px_1fr]">
+        <section className={panel}>
+          <div className={panelHeader}>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
+              {editingTaskId ? 'Edit task' : 'New task'}
             </h2>
           </div>
-
-          <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+          <form className={`${panelBody} space-y-4`} onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="task-title" className="mb-1 block text-sm font-medium text-slate-700">
+              <label htmlFor="task-title" className={labelClass}>
                 Title
               </label>
               <input
                 id="task-title"
                 type="text"
+                className={inputClass}
                 value={formState.title}
                 onChange={(event) => setFormState((current) => ({ ...current, title: event.target.value }))}
-                className="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
-                placeholder="Enter task title"
+                placeholder="What needs to be done?"
               />
             </div>
 
             <div>
-              <label htmlFor="task-description" className="mb-1 block text-sm font-medium text-slate-700">
+              <label htmlFor="task-description" className={labelClass}>
                 Description
               </label>
               <textarea
                 id="task-description"
-                rows="4"
+                rows={4}
+                className={`${inputClass} resize-y`}
                 value={formState.description}
-                onChange={(event) => setFormState((current) => ({ ...current, description: event.target.value }))}
-                className="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
-                placeholder="Add task details"
+                onChange={(event) =>
+                  setFormState((current) => ({ ...current, description: event.target.value }))
+                }
+                placeholder="Optional details"
               />
             </div>
 
             <div>
-              <label htmlFor="task-status" className="mb-1 block text-sm font-medium text-slate-700">
+              <label htmlFor="task-status" className={labelClass}>
                 Status
               </label>
               <select
                 id="task-status"
+                className={inputClass}
                 value={formState.status}
                 onChange={(event) => setFormState((current) => ({ ...current, status: event.target.value }))}
-                className="w-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500"
               >
                 <option value="pending">Pending</option>
-                <option value="in-progress">In Progress</option>
+                <option value="in-progress">In progress</option>
                 <option value="completed">Completed</option>
               </select>
             </div>
 
-            {error ? <p className="text-sm text-red-700">{error}</p> : null}
+            {error ? (
+              <p className={alertError} role="alert">
+                {error}
+              </p>
+            ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex items-center justify-center border border-slate-800 bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-600"
-              >
-                {isSubmitting ? <ClassicLoader /> : editingTaskId ? 'Update Task' : 'Add Task'}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button type="submit" disabled={isSubmitting} className={btnPrimary}>
+                {isSubmitting ? (
+                  <span className={loaderCompactClass} aria-label="Loading" />
+                ) : editingTaskId ? (
+                  'Save changes'
+                ) : (
+                  'Add task'
+                )}
               </button>
-
               {editingTaskId ? (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                >
+                <button type="button" className={btnSecondary} onClick={resetForm}>
                   Cancel
                 </button>
               ) : null}
@@ -215,73 +295,82 @@ function DashboardTasksPage() {
           </form>
         </section>
 
-        <section className="border border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Task List</h2>
-            <button
-              type="button"
-              onClick={loadTasks}
-              className="border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            >
-              Refresh
-            </button>
+        <section className={panel}>
+          <div className={`${panelHeader} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">All tasks</h2>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="search"
+                className={`${inputClass} w-full sm:w-44`}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search tasks…"
+                aria-label="Search tasks"
+              />
+              <select
+                className={`${inputClass} w-full sm:w-40`}
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                aria-label="Filter by status"
+              >
+                {filterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
             <div className="min-w-[720px]">
-              <div className="grid grid-cols-[1.4fr_1.2fr_0.8fr_1fr] border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div className={`${tableHead} grid-cols-[1.2fr_1fr_0.7fr_0.7fr_1fr]`}>
                 <span>Title</span>
                 <span>Description</span>
                 <span>Status</span>
+                <span>Created</span>
                 <span>Actions</span>
               </div>
 
               {isLoading ? (
-                <div className="px-4 py-8 text-sm text-slate-600">
-                  <ClassicLoader />
+                <div className="px-5 py-10">
+                  <span className="inline-flex items-center gap-2.5 text-sm text-ink-muted" aria-label="Loading">
+                    <span className={loaderClass} />
+                    <span>Loading…</span>
+                  </span>
                 </div>
-              ) : tasks.length === 0 ? (
-                <div className="px-4 py-8 text-sm text-slate-600">
-                  No tasks yet. Add one from the form on the left.
+              ) : filteredTasks.length === 0 ? (
+                <div className="px-4 py-10 text-center">
+                  <p className="font-serif text-lg text-ink">No tasks found</p>
+                  <p className="mx-auto mt-2 max-w-sm text-sm text-ink-muted">
+                    {searchQuery || statusFilter !== 'all'
+                      ? 'Try adjusting your search or filter.'
+                      : 'Add a task using the form on the left.'}
+                  </p>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-200">
-                  {tasks.map((task) => (
-                    <div
-                      key={task._id}
-                      className="grid grid-cols-[1.4fr_1.2fr_0.8fr_1fr] items-start px-4 py-4 text-sm text-slate-700"
-                    >
-                      <div>
-                        <p className="font-medium text-slate-900">{task.title}</p>
-                        <p className="mt-1 text-xs text-slate-500">ID: {task._id}</p>
-                      </div>
-                      <p className="pr-4 leading-6 text-slate-600">
-                        {task.description || 'No description provided.'}
-                      </p>
-                      <div>
-                        <span className="inline-flex border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-medium uppercase tracking-wide text-slate-700">
-                          {formatStatus(task.status)}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(task)}
-                          className="border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(task._id)}
-                          className="border border-slate-800 bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                filteredTasks.map((task) => (
+                  <div key={task._id} className={`${tableRow} grid-cols-[1.2fr_1fr_0.7fr_0.7fr_1fr]`}>
+                    <p className="font-medium text-ink">{task.title}</p>
+                    <p className="pr-3 leading-relaxed">{task.description || '—'}</p>
+                    <div>
+                      <span
+                        className={`${statusBadgeClass} ${statusColorClasses[task.status] || statusColorClasses.pending}`}
+                      >
+                        {statusLabels[task.status] || 'Pending'}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-xs text-ink-faint">{formatDate(task.createdAt)}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" className={btnSecondary} onClick={() => handleEdit(task)}>
+                        Edit
+                      </button>
+                      <button type="button" className={btnDanger} onClick={() => handleDelete(task._id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>

@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import api from '../../utils/api'
-import ClassicLoader from '../../components/ClassicLoader'
-
-const statusLabels = {
-  pending: 'Pending',
-  'in-progress': 'In Progress',
-  completed: 'Completed',
-}
+import {
+  alertError,
+  kicker,
+  loaderClass,
+  panel,
+  panelHeader,
+  statusBadgeClass,
+  statusColorClasses,
+  statusLabels,
+} from '../../utils/tailwindClasses'
 
 function DashboardHomePage() {
   const [tasks, setTasks] = useState([])
@@ -57,101 +61,132 @@ function DashboardHomePage() {
     }
   }, [tasks, projects])
 
-  const recentTasks = tasks.slice(0, 4)
-  const recentProjects = projects.slice(0, 3)
+  const recentTasks = tasks.slice(0, 5)
+  const recentProjects = projects.slice(0, 4)
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          A live overview of your workspace with current task and project activity.
-        </p>
-      </div>
+    <div className="space-y-8">
+      <header className="flex flex-col gap-4 border-b border-rule-light pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className={kicker}>Overview</p>
+          <h1 className="mt-1 text-[1.75rem] text-ink sm:text-[2rem]">Dashboard</h1>
+          <p className="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
+            A summary of your tasks and projects at a glance.
+          </p>
+        </div>
+      </header>
 
       {isLoading ? (
-        <div className="border border-slate-200 bg-white p-6 text-sm text-slate-600">
-          <ClassicLoader />
+        <div className={`${panel} p-8`}>
+          <span className="inline-flex items-center gap-2.5 text-sm text-ink-muted" aria-label="Loading">
+            <span className={loaderClass} />
+            <span>Loading…</span>
+          </span>
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {!isLoading && error ? (
+        <p className={alertError} role="alert">
+          {error}
+        </p>
+      ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tasks</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.totalTasks}</p>
-          <p className="mt-1 text-sm text-slate-600">Total personal tasks</p>
-        </article>
-
-        <article className="border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pending</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.pendingTasks}</p>
-          <p className="mt-1 text-sm text-slate-600">Waiting to be started</p>
-        </article>
-
-        <article className="border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Projects</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.totalProjects}</p>
-          <p className="mt-1 text-sm text-slate-600">Active project spaces</p>
-        </article>
-
-        <article className="border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Project Tasks</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{summary.totalProjectTasks}</p>
-          <p className="mt-1 text-sm text-slate-600">Tasks inside projects</p>
-        </article>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-        <section className="border border-slate-200 bg-white">
-          <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Recent Tasks</h2>
+      {!isLoading && !error ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: 'Total tasks', value: summary.totalTasks, note: 'Personal task list' },
+              { label: 'Pending', value: summary.pendingTasks, note: 'Not yet started' },
+              { label: 'Projects', value: summary.totalProjects, note: 'Active workspaces' },
+              { label: 'Project tasks', value: summary.totalProjectTasks, note: 'Tasks within projects' },
+            ].map((stat) => (
+              <article key={stat.label} className={`${panel} p-4`}>
+                <p className={kicker}>{stat.label}</p>
+                <p className="mt-2 font-serif text-[1.75rem] font-semibold leading-tight text-ink">
+                  {stat.value}
+                </p>
+                <p className="mt-1 text-sm text-ink-muted">{stat.note}</p>
+              </article>
+            ))}
           </div>
 
-          {recentTasks.length === 0 ? (
-            <p className="px-4 py-5 text-sm text-slate-600">No tasks yet.</p>
-          ) : (
-            <div className="divide-y divide-slate-200">
-              {recentTasks.map((task) => (
-                <div key={task._id} className="grid gap-2 px-4 py-4 sm:grid-cols-[1.4fr_0.9fr] sm:items-center">
-                  <div>
-                    <p className="font-medium text-slate-900">{task.title}</p>
-                    <p className="mt-1 text-sm text-slate-600">{task.description || 'No description provided.'}</p>
-                  </div>
-                  <div className="sm:text-right">
-                    <span className="inline-flex border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-medium uppercase tracking-wide text-slate-700">
-                      {statusLabels[task.status] || 'Pending'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+          <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
+            <section className={panel}>
+              <div className={`${panelHeader} flex items-center justify-between`}>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">Recent tasks</h2>
+                <Link
+                  to="/dashboard/tasks"
+                  className="text-sm font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  View all
+                </Link>
+              </div>
 
-        <section className="border border-slate-200 bg-white">
-          <div className="border-b border-slate-200 px-4 py-3 sm:px-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Recent Projects</h2>
-          </div>
-
-          {recentProjects.length === 0 ? (
-            <p className="px-4 py-5 text-sm text-slate-600">No projects yet.</p>
-          ) : (
-            <div className="divide-y divide-slate-200">
-              {recentProjects.map((project) => (
-                <div key={project._id} className="px-4 py-4">
-                  <p className="font-medium text-slate-900">{project.name}</p>
-                  <p className="mt-1 text-sm text-slate-600">{project.description}</p>
-                  <p className="mt-2 text-xs text-slate-500">
-                    {project.tasks?.length || 0} task(s) attached
+              {recentTasks.length === 0 ? (
+                <div className="px-4 py-10 text-center">
+                  <p className="font-serif text-lg text-ink">No tasks yet</p>
+                  <p className="mx-auto mt-2 max-w-sm text-sm text-ink-muted">
+                    Create your first task from the Tasks page.
                   </p>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+              ) : (
+                <div>
+                  {recentTasks.map((task) => (
+                    <div
+                      key={task._id}
+                      className="flex flex-col gap-2 border-b border-rule-light px-5 py-4 last:border-b-0 sm:flex-row sm:items-start sm:justify-between"
+                    >
+                      <div>
+                        <p className="font-medium text-ink">{task.title}</p>
+                        <p className="mt-1 text-sm text-ink-muted">{task.description || 'No description.'}</p>
+                      </div>
+                      <span
+                        className={`${statusBadgeClass} ${statusColorClasses[task.status] || statusColorClasses.pending}`}
+                      >
+                        {statusLabels[task.status] || 'Pending'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className={panel}>
+              <div className={`${panelHeader} flex items-center justify-between`}>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">Projects</h2>
+                <Link
+                  to="/dashboard/projects"
+                  className="text-sm font-medium text-accent underline-offset-2 hover:underline"
+                >
+                  Manage
+                </Link>
+              </div>
+
+              {recentProjects.length === 0 ? (
+                <div className="px-4 py-10 text-center">
+                  <p className="font-serif text-lg text-ink">No projects yet</p>
+                  <p className="mx-auto mt-2 max-w-sm text-sm text-ink-muted">
+                    Organize related tasks into projects.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  {recentProjects.map((project) => (
+                    <div
+                      key={project._id}
+                      className="border-b border-rule-light px-5 py-4 last:border-b-0"
+                    >
+                      <p className="font-medium text-ink">{project.name}</p>
+                      <p className="mt-1 text-sm text-ink-muted">{project.description}</p>
+                      <p className="mt-2 text-xs text-ink-faint">{project.tasks?.length || 0} task(s)</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }

@@ -1,16 +1,16 @@
 import { Link } from 'react-router-dom'
+import { btnPrimary, kicker } from '../utils/tailwindClasses'
 
 function NotFoundPage() {
   return (
-    <section className="mx-auto w-full max-w-md border border-slate-300 bg-white p-6 text-center">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">404</p>
-      <h1 className="mt-1 text-2xl font-semibold text-slate-900">Page Not Found</h1>
-      <p className="mt-3 text-sm text-slate-600">The page you are looking for does not exist.</p>
-      <Link
-        className="mt-5 inline-block border border-slate-800 bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-        to="/"
-      >
-        Go Home
+    <section className="mx-auto w-full max-w-md py-8 text-center">
+      <p className={kicker}>404</p>
+      <h1 className="mt-2 text-[1.75rem] text-ink">Page not found</h1>
+      <p className="mt-3 text-sm text-ink-muted">
+        The address you entered does not match any page in this application.
+      </p>
+      <Link to="/" className={`${btnPrimary} mt-6 inline-flex no-underline`}>
+        Return home
       </Link>
     </section>
   )
